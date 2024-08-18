@@ -2,6 +2,7 @@
 
 import os
 from flask import Flask, render_template, request
+from helpers import login_required
 # using sqlite for sql db
 app = Flask(__name__)
 
