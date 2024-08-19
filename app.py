@@ -26,17 +26,18 @@ def login():
         return render_template("login.html")
     else:
         session["email"] = request.form.get("emailField")
-        session["password"] = request.form.get("passwordField")
-        hashing = hashlib.sha256()
-        hashing.update(session["password"])
-        password_hash = hashing.hexdigest()
-        conn = sqlite3.connect("userinfo.db")
+        session["password"] = request.form.get("passwordField").encode()
+        sha256 = hashlib.sha256()
+
+        # .update() only accepts byte-like objects, hence I converted password to bytes-like form using .encode()
+        sha256.update(session["password"])
+        password_hash = sha256.hexdigest()
+        print(password_hash)
+
+        conn = sqlite3.connect("maindb.db")
         cursor = conn.cursor()
-        userInfo = cursor.execute("SELECT * FROM userinfo WHERE password = ?", password_hash)
-        print(userInfo)
-        if len(userInfo) == 0:
-            flash("Username or password does not exist!")
-            return render_template("login.html")
+        userInfo = cursor.execute("SELECT * FROM userinformation WHERE password = ?", [password_hash])
+        print(userInfo.fetchone())
         return render_template("index.html")
 
 
