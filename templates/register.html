@@ -15,13 +15,13 @@
             <div id="container" class="mx-auto">
                 <div class="mx-auto w-25 text-center">
                     <label for="inputEmail" class="form-label">E-mail address</label>
-                    <input type="email" class="form-control" id="email">
+                    <input type="email" class="form-control" name="email">
                 </div>
                 <div class="mx-auto w-25 text-center">
                     <label for="inputPassword" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password">
+                    <input type="password" class="form-control" name="password">
                     <label for="inputPassword" class="form-label">Confirm Password</label>
-                    <input type="password" class="form-control" id="confirmPassword">
+                    <input type="password" class="form-control" name="confirmPassword">
                 </div>
                 <div class="mx-auto mt-3 text-center">
                     <button class="btn btn-primary">Register</button>
@@ -33,5 +33,10 @@
                 <button class="btn btn-success">Go Back</button>
             </div>
         </form>
+        {% if error %}
+            <div class="alert alert-danger" role="alert">
+                {{error}}
+            </div>
+        {% endif %}
     </body>
 </html>

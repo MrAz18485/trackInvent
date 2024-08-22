@@ -59,7 +59,7 @@ def register():
     else:
         email = request.form.get("email")
         password = request.form.get("password")
-        passwordConfirm = request.form.get("passwordConfirm")
+        passwordConfirm = request.form.get("confirmPassword")
         if password != passwordConfirm:
             error = "Passwords do not match!"
             return render_template("register.html")
