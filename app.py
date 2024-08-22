@@ -1,6 +1,6 @@
 # with the help of https://flask.palletsprojects.com/en/3.0.x/tutorial/factory/
 # https://www.geeksforgeeks.org/python-sqlite/ for helping me in sqlite
-
+# https://stackoverflow.com/questions/28126140/python-sqlite3-operationalerror-no-such-table - helped me in solving a problem with connecting to the database (i.e. path issue)
 import os
 import hashlib
 from flask import Flask, render_template, request, redirect, session, flash
@@ -33,11 +33,21 @@ def login():
         sha256.update(session["password"])
         password_hash = sha256.hexdigest()
         print(password_hash)
+        print(os.getcwd())
 
-        conn = sqlite3.connect("maindb.db")
-        cursor = conn.cursor()
-        userInfo = cursor.execute("SELECT * FROM userinformation WHERE password = ?", [password_hash])
+        try:
+            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            db_path = os.path.join(BASE_DIR, "maindb.db")
+            with sqlite3.connect(db_path) as db:
+                cursor = db.cursor()
+        except sqlite3.Error:
+            error = sqlite3.Error
+            return render_template("error.html")
+        userInfo = cursor.execute("SELECT * FROM userinformation WHERE password = ?", password_hash)
         print(userInfo.fetchone())
+        if userInfo.fetchone() == None:
+            error = "Invalid Email/Password"
+            return render_template("login.html")
         return render_template("index.html")
 
 
@@ -45,3 +55,5 @@ def login():
 def register():
     if request.method == "GET":
         return render_template("register.html")
+    
+app.run(debug=True)
