@@ -24,15 +24,17 @@
                 <div class="mx-auto mt-3 text-center">
                     <button type="submit" class="btn btn-success">Login</button>
                 </div>
-                <div class="mx-auto mt-2 text-center">
-                    <button id="regButton" type="submit" class="btn btn-primary">Register</button>
-                </div>
-                {% if error %}
-                    <div class="alert alert-danger" role="alert">
-                        {{error}}
-                    </div>
-                {% endif %}
             </div>
         </form>
+        <form action="/register" method="get">
+            <div class="mx-auto mt-2 text-center">
+                <button id="regButton" class="btn btn-primary">Register</button>
+            </div>
+        </form>
+        {% if error %}
+            <div class="alert alert-danger" role="alert">
+                {{error}}
+            </div>
+        {% endif %}
     </body>
 </html>

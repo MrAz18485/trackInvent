@@ -33,27 +33,35 @@ def login():
         sha256.update(session["password"])
         password_hash = sha256.hexdigest()
         print(password_hash)
-        print(os.getcwd())
 
         try:
-            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-            db_path = os.path.join(BASE_DIR, "maindb.db")
+            BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
+            db_path = os.path.join(BASE_PATH, "maindb.db")
+            print(db_path)
             with sqlite3.connect(db_path) as db:
                 cursor = db.cursor()
         except sqlite3.Error:
             error = sqlite3.Error
             return render_template("error.html")
-        userInfo = cursor.execute("SELECT * FROM userinformation WHERE password = ?", password_hash)
+        userInfo = cursor.execute("SELECT * FROM userinformation WHERE password = ?", [password_hash])
         print(userInfo.fetchone())
         if userInfo.fetchone() == None:
             error = "Invalid Email/Password"
             return render_template("login.html")
-        return render_template("index.html")
+        else:
+            return render_template("index.html")
 
 
 @app.route("/register", methods=["POST", "GET"])
 def register():
     if request.method == "GET":
         return render_template("register.html")
-    
+    else:
+        email = request.form.get("email")
+        password = request.form.get("password")
+        passwordConfirm = request.form.get("passwordConfirm")
+        if password != passwordConfirm:
+            error = "Passwords do not match!"
+            return render_template("register.html")
+        return render_template("login.html")
 app.run(debug=True)
