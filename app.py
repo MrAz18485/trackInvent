@@ -7,9 +7,10 @@ import os
 import hashlib
 from flask import Flask, render_template, request, redirect, session, flash
 from flask_session import Session
-from flask_login import LoginManager
+from flask_login import LoginManager, UserMixin
 from helpers import login_required
 import sqlite3
+import uuid
 # using sqlite for sql db
 
 app = Flask(__name__)
@@ -17,8 +18,6 @@ app.secret_key = 'skIW!2&9GJ/!S,ab,R3Tv#c'
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
 
 def connectDB():
     BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
@@ -39,8 +38,6 @@ def hashPassword(input):
     return password_hash
 
 
-@LoginManager
-
 @app.route("/")
 @login_required
 def index():
@@ -53,7 +50,6 @@ def login():
     else:
         session["email"] = request.form.get("emailField")
         session["password"] = request.form.get("passwordField").encode()
-
         password_hash = hashPassword(session["password"])
 
         BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
@@ -78,11 +74,9 @@ def register():
     if request.method == "GET":
         return render_template("register.html")
     else:
-        print(session["id"])
         email = request.form.get("email")
         password = request.form.get("password")
         passwordConfirm = request.form.get("confirmPassword")
-        print(password + "-" + passwordConfirm)
         if email == "":
             flash("Email field cannot be left blank!", "error")
             return render_template("register.html")
@@ -113,8 +107,11 @@ def register():
             return render_template("register.html")
         
         password_hash = hashPassword(password)
-        cursor.execute("INSERT INTO userinformation (id, email, password) VALUES (?, ?, ?)", session["id"], email, password)
+        # session id must be unique, hence using uuid is logical here
+        session["id"] = uuid.uuid4()
+        print(session)
+        cursor.execute("INSERT INTO userinformation VALUES (?, ?, ?);", (session["id"], email, password))
         db.commit()
-        flash("Registration successful! You can login with your registered email and password")
+        flash("Registration successful! You can login with your registered email and password", "success")
         return render_template("login.html")
 app.run(debug=True)
