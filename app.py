@@ -3,6 +3,7 @@
 # https://stackoverflow.com/questions/28126140/python-sqlite3-operationalerror-no-such-table - helped me in solving a problem with connecting to the database (i.e. path issue)
 
 # used flask-login for logging in, logging out and registering systems
+# used flask-session for handling user sessions
 import os
 import hashlib
 from flask import Flask, render_template, request, redirect, session, flash
@@ -19,16 +20,6 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-def connectDB():
-    BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
-    db_path = os.path.join(BASE_PATH, "maindb.db")
-    print(db_path)
-    try:
-        with sqlite3.connect(db_path) as db:
-            cursor = db.cursor()
-    except sqlite3.Error:
-        flash("Error while connecting to database, please try again later", "error")
-        return render_template("error.html")
 
 # .update() only accepts byte-like objects, hence I converted password to bytes-like form using .encode()
 def hashPassword(input):
@@ -51,21 +42,22 @@ def login():
         session["email"] = request.form.get("emailField")
         session["password"] = request.form.get("passwordField").encode()
         password_hash = hashPassword(session["password"])
-
+        print(session)
         BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
         db_path = os.path.join(BASE_PATH, "maindb.db")
-        print(db_path)
         try:
             with sqlite3.connect(db_path) as db:
                 cursor = db.cursor()
+        # when an error occurs
         except sqlite3.Error:
-            flash("Error while connecting to database, please try again later", "error")
+            flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
             return render_template("error.html")
-        userInfo = cursor.execute("SELECT * FROM userinformation WHERE email = ? AND password = ?", session["email"], [password_hash])
+        userInfo = cursor.execute("SELECT * FROM userinformation WHERE email = ? AND password = ?;", (session["email"], password_hash))
         if len(userInfo.fetchall()) == 0: # when there's no records that match
-            flash("Invalid Email/Password", "error")
+            flash("Invalid Email/Password", "danger")
             return render_template("login.html")
         else:
+            flash("Login successful! Redirecting to homepage", "success")
             return render_template("index.html")
 
 
@@ -78,16 +70,16 @@ def register():
         password = request.form.get("password")
         passwordConfirm = request.form.get("confirmPassword")
         if email == "":
-            flash("Email field cannot be left blank!", "error")
+            flash("Email field cannot be left blank!", "danger")
             return render_template("register.html")
         elif password != passwordConfirm:
-            flash("Passwords do not match!", "error")
+            flash("Passwords do not match!", "danger")
             return render_template("register.html")
         elif password == "":
-            flash("Password field cannot be blank!", "error")
+            flash("Password field cannot be blank!", "danger")
             return render_template("register.html")
         elif len(password) < 6:
-            flash("Your password length must be at least 6 characters", "error")
+            flash("Your password length must be at least 6 characters", "danger")
             return render_template("register.html")
         # if all tests are successful
 
@@ -98,19 +90,24 @@ def register():
             with sqlite3.connect(db_path) as db:
                 cursor = db.cursor()
         except sqlite3.Error:
-            flash("Error while connecting to database, please try again later.", "error")
+            flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
             return render_template("error.html")
+        
         # okay now we're connected to the db, but what if this email has been used before for another account?               
         replica = cursor.execute("SELECT email FROM userinformation WHERE email = ?", [email])
+        
+        # fetchall returns a list
         if not len(replica.fetchall()) == 0: # if there's an existing record with the same email that user is currently trying to register with
-            flash("An account already exists with this email!", "error")
+            flash("An account already exists with this email!", "danger")
             return render_template("register.html")
         
         password_hash = hashPassword(password)
         # session id must be unique, hence using uuid is logical here
-        session["id"] = uuid.uuid4()
+        session["id"] = str(uuid.uuid4())
         print(session)
-        cursor.execute("INSERT INTO userinformation VALUES (?, ?, ?);", (session["id"], email, password))
+        
+        # inserting the session id, email and hashed password into the db
+        cursor.execute("INSERT INTO userinformation VALUES (?, ?, ?);", (session["id"], email, password_hash))
         db.commit()
         flash("Registration successful! You can login with your registered email and password", "success")
         return render_template("login.html")
