@@ -1,7 +1,7 @@
 # with the help of https://flask.palletsprojects.com/en/3.0.x/tutorial/factory/
 # https://www.geeksforgeeks.org/python-sqlite/ for helping me in sqlite
 # https://stackoverflow.com/questions/28126140/python-sqlite3-operationalerror-no-such-table - helped me in solving a problem with connecting to the database (i.e. path issue)
-
+# https://stackoverflow.com/questions/12075535/flask-login-cant-understand-how-it-works - helped me in creating a user class
 # used flask-login for logging in, logging out and registering systems
 # used flask-session for handling user sessions
 import os
@@ -9,7 +9,6 @@ import hashlib
 from flask import Flask, render_template, request, redirect, session, flash
 from flask_session import Session
 from flask_login import LoginManager, UserMixin
-from helpers import login_required
 import sqlite3
 import uuid
 # using sqlite for sql db
@@ -18,19 +17,18 @@ app = Flask(__name__)
 app.secret_key = 'skIW!2&9GJ/!S,ab,R3Tv#c'
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
+login_manager = LoginManager()
 Session(app)
-
 
 # .update() only accepts byte-like objects, hence I converted password to bytes-like form using .encode()
 def hashPassword(input):
     sha256 = hashlib.sha256()
-    sha256.update(session["password"])
+    sha256.update(input)
     password_hash = sha256.hexdigest()
     return password_hash
 
 
 @app.route("/")
-@login_required
 def index():
     return render_template("index.html")
 
@@ -39,10 +37,9 @@ def login():
     if request.method == "GET":
         return render_template("login.html")
     else:
-        session["email"] = request.form.get("emailField")
-        session["password"] = request.form.get("passwordField").encode()
-        password_hash = hashPassword(session["password"])
-        print(session)
+        email = request.form.get("emailField")
+        password = request.form.get("passwordField").encode()
+        password_hash = hashPassword(password)
         BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
         db_path = os.path.join(BASE_PATH, "maindb.db")
         try:
@@ -52,13 +49,16 @@ def login():
         except sqlite3.Error:
             flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
             return render_template("error.html")
-        userInfo = cursor.execute("SELECT * FROM userinformation WHERE email = ? AND password = ?;", (session["email"], password_hash))
+        userInfo = cursor.execute("SELECT * FROM userinformation WHERE email = ? AND password = ?;", (email, password_hash))
+        print(userInfo.fetchall())
         if len(userInfo.fetchall()) == 0: # when there's no records that match
             flash("Invalid Email/Password", "danger")
             return render_template("login.html")
-        else:
-            flash("Login successful! Redirecting to homepage", "success")
-            return render_template("index.html")
+        session["id"] = userInfo.fetchone()[0]
+        session["email"] = email
+        session["password"] = password_hash
+        flash("Login successful! Redirecting to homepage", "success")
+        return render_template("index.html")
 
 
 @app.route("/register", methods=["POST", "GET"])
@@ -101,7 +101,7 @@ def register():
             flash("An account already exists with this email!", "danger")
             return render_template("register.html")
         
-        password_hash = hashPassword(password)
+        password_hash = hashPassword(password.encode())
         # session id must be unique, hence using uuid is logical here
         session["id"] = str(uuid.uuid4())
         print(session)
@@ -111,4 +111,12 @@ def register():
         db.commit()
         flash("Registration successful! You can login with your registered email and password", "success")
         return render_template("login.html")
+
+@app.route("/logout", methods=["GET"])
+def logout():
+    session.clear()
+    flash("Successfully logged out!", "success")
+    return render_template("login.html")
+
+
 app.run(debug=True)
