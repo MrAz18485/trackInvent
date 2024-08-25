@@ -9,6 +9,7 @@ import hashlib
 from flask import Flask, render_template, request, redirect, session, flash
 from flask_session import Session
 from flask_login import LoginManager, UserMixin
+from helpers import login_required
 import sqlite3
 import uuid
 # using sqlite for sql db
@@ -29,6 +30,7 @@ def hashPassword(input):
 
 
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
@@ -50,11 +52,16 @@ def login():
             flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
             return render_template("error.html")
         userInfo = cursor.execute("SELECT * FROM userinformation WHERE email = ? AND password = ?;", (email, password_hash))
-        print(userInfo.fetchall())
-        if len(userInfo.fetchall()) == 0: # when there's no records that match
+        userInfo = userInfo.fetchone()
+
+        # userInfo will return None if there's no records matching, hence trying to reach ith index will return a TypeError, so handling it this way.
+        try:
+            session["id"] = userInfo[0]
+        except TypeError:
             flash("Invalid Email/Password", "danger")
             return render_template("login.html")
-        session["id"] = userInfo.fetchone()[0]
+        
+        # If everything's fine, we can assign email and passwords to the session
         session["email"] = email
         session["password"] = password_hash
         flash("Login successful! Redirecting to homepage", "success")
@@ -117,6 +124,5 @@ def logout():
     session.clear()
     flash("Successfully logged out!", "success")
     return render_template("login.html")
-
 
 app.run(debug=True)
