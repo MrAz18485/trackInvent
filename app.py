@@ -4,6 +4,10 @@
 # https://stackoverflow.com/questions/12075535/flask-login-cant-understand-how-it-works - helped me in creating a user class
 # used flask-login for logging in, logging out and registering systems
 # used flask-session for handling user sessions
+
+# Used https://www.reddit.com/r/cs50/comments/v3s2f6/is_everything_submitted_to_a_flask_form_a_string/ in function, additem, to convert the variable "itemcount"
+# from string form to int form in request.form.get instead of typecasting it like int()
+
 import os
 import hashlib
 from flask import Flask, render_template, request, redirect, session, flash
@@ -57,6 +61,39 @@ def loadInventory(id):
 def inventory():
     userinventory = loadInventory(session["id"])
     return render_template("inventory.html", items=userinventory)
+
+
+@app.route("/additem", methods=["GET", "POST"])
+@login_required
+def additem():
+    userinventory = loadInventory(session["id"])
+    if request.method == "GET":
+        return render_template("additem.html", items=userinventory)
+    else:
+        itemName = request.form.get("nameField")
+
+        # typecasting since request.form.get returns a string
+        itemCount = request.form.get("countField", type=int)
+        if (itemCount <= 0):
+            flash("Item count cannot be less than 1!", "error")
+            return render_template("additem.html")
+        try:
+            with sqlite3.connect(db_path) as db:
+                cursor = db.cursor()
+        except sqlite3.Error:
+            flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
+            return render_template("additem.html")
+        
+        # I have to handle possible errors here.
+        try:
+            cursor.execute("INSERT INTO inventory VALUES (?, ?, ?);", (session["id"], itemName, itemCount))
+            # new data added to the db, hence .commit() is necessary
+            db.commit()
+            userinventory = loadInventory(session["id"])
+            return render_template("additem.html", item=userinventory)
+        except sqlite3.Error:
+            flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
+            return render_template("additem.html", item=userinventory)
 
 @app.route("/login", methods=["POST", "GET"])
 def login():
@@ -145,7 +182,9 @@ def register():
         cursor.execute("INSERT INTO userinformation VALUES (?, ?, ?);", (session["id"], email, password_hash))
         db.commit()
         flash("Registration successful! You can login with your registered email and password", "success")
-        return render_template("inventory.html")
+
+        # right after registration, user will not have any items, so parameter should be set to None
+        return render_template("inventory.html", items=None)
 
 @app.route("/logout", methods=["GET"])
 def logout():

@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+
+    {% block header %}
+    <div id="container">
+        <h1 style="text-align: center">Add Items</h1>
+    </div>
+    {% endblock %}
+
+    {% block body %}
+    <form action="/additem" method="post">
+        <div class="d-flex flex-row justify-content-center align-items-center mt-3">
+            <div class="mx-auto text-center">
+                <label for="inputItem" class="form-label">Item Name</label>
+                <input name="nameField" type="text" class="form-control">
+            </div>
+
+            <div class="mx-auto text-center">
+                <label for="inputItemCount" class="form-label">Item Count</label>
+                <input name="countField" type="number" class="form-control">
+            </div>
+
+            <div class="mx-auto text-center mt-4">
+                <button type="submit" class="btn btn-success">Add Item</button>
+            </div>
+    </form>
+    {% endblock %}
+
