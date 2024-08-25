@@ -21,6 +21,11 @@ app.config["SESSION_TYPE"] = "filesystem"
 login_manager = LoginManager()
 Session(app)
 
+# Setting these two as global variables since I'll use them through many functions in my program, hence instead of defining them for each function I'd rather
+# define them here.
+BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
+db_path = os.path.join(BASE_PATH, "maindb.db")
+
 # .update() only accepts byte-like objects, hence I converted password to bytes-like form using .encode()
 def hashPassword(input):
     sha256 = hashlib.sha256()
@@ -28,22 +33,43 @@ def hashPassword(input):
     password_hash = sha256.hexdigest()
     return password_hash
 
+def loadInventory(id):
+    # decided to convert this to a function since I'll be using this logic more than once, to avoid copy-paste
+    try:
+        with sqlite3.connect(db_path) as db:
+            cursor = db.cursor()
+    except sqlite3.Error:
+        flash(f"Error while retrieving user inventory from database {{ sqlite3.Error}} ", "danger")
+    userinventory = cursor.execute("SELECT * FROM inventory WHERE userid = ?", [id])
+
+    # using .fetchall() more than once in a single cursor causes a lot of problems such as data not being shown although being existent due to its nature
+    userinventory = userinventory.fetchall()
+
+    # if no items exist in the inventory
+    if len(userinventory) == 0:
+        return None
+    
+    return userinventory
+
 
 @app.route("/")
 @login_required
-def index():
-    return render_template("index.html")
+def inventory():
+    userinventory = loadInventory(session["id"])
+    return render_template("inventory.html", items=userinventory)
 
 @app.route("/login", methods=["POST", "GET"])
 def login():
+
+    # start off with a fresh session
+    session.clear()
+
     if request.method == "GET":
         return render_template("login.html")
     else:
         email = request.form.get("emailField")
         password = request.form.get("passwordField").encode()
         password_hash = hashPassword(password)
-        BASE_PATH = os.path.abspath(os.path.dirname(__file__)) + "\db"
-        db_path = os.path.join(BASE_PATH, "maindb.db")
         try:
             with sqlite3.connect(db_path) as db:
                 cursor = db.cursor()
@@ -65,7 +91,9 @@ def login():
         session["email"] = email
         session["password"] = password_hash
         flash("Login successful! Redirecting to homepage", "success")
-        return render_template("index.html")
+
+        userinventory = loadInventory(session["id"])
+        return render_template("inventory.html", items=userinventory)
 
 
 @app.route("/register", methods=["POST", "GET"])
@@ -117,7 +145,7 @@ def register():
         cursor.execute("INSERT INTO userinformation VALUES (?, ?, ?);", (session["id"], email, password_hash))
         db.commit()
         flash("Registration successful! You can login with your registered email and password", "success")
-        return render_template("login.html")
+        return render_template("inventory.html")
 
 @app.route("/logout", methods=["GET"])
 def logout():
