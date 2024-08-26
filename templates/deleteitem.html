@@ -1,13 +1,15 @@
 {% extends "layout.html" %}
 
 {% block header %}
-    <div id="container">
-        <h1 style="text-align: center">Add Items</h1>
-    </div>
+<div id="container">
+    <h1 style="text-align: center">Delete Items</h1>
+</div>
 {% endblock %}
 
+
+<!--pretty similar to additem.html except button colors and a few texts-->
 {% block body %}
-    <form action="/additem" method="post">
+    <form action="/deleteitem" method="post">
         <div class="d-flex flex-row justify-content-center align-items-center mt-3">
             <div class="mx-auto text-center">
                 <label for="inputItem" class="form-label">Item Name</label>
@@ -20,8 +22,7 @@
             </div>
 
             <div class="mx-auto text-center mt-4">
-                <button type="submit" class="btn btn-success">Add Item</button>
+                <button type="submit" class="btn btn-danger">Delete Item</button>
             </div>
     </form>
 {% endblock %}
-

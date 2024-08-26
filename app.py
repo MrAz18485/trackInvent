@@ -67,7 +67,7 @@ def updateInventory(cursor, db, values):
         elif values[0] == "INSERT":
             cursor.execute("INSERT INTO inventory VALUES(?, ?, ?);", (values[1], values[2], values[3]))
         elif values[0] == "DELETE":
-            cursor.execute("DELETE FROM inventory WHERE userid = (?)")
+            cursor.execute("DELETE FROM inventory WHERE userid = (?) AND item = ?;", (values[1], values[2]))
         # new data added to the db, hence .commit() is necessary
         db.commit()
         # second query, values are now updated, hence updated values should be shown to the user
@@ -129,10 +129,64 @@ def additem():
         vals = ["INSERT", session["id"], itemName, itemCount]
         updatedInventory = updateInventory(cursor, db, vals)
         if (updatedInventory != None):
+            flash("Successfully applied changes!", "success")
             return render_template("additem.html", items=updatedInventory)
         else:
+            flash("There was an error while applying your request, please try again later.", "primary")
             return render_template("additem.html", items=userinventory)
-    
+
+@app.route("/deleteitem", methods=["POST", "GET"])
+@login_required
+def deleteitem():
+
+    # this function is pretty similar to function additem(), there's similar checks and error handling procedures.
+    userinventory = loadInventory(session["id"])
+    print(userinventory)
+    if request.method == "GET":
+        return render_template("deleteitem.html", items=userinventory)
+    else:
+        itemName = request.form.get("nameField")
+        itemCount = request.form.get("countField", type=int)
+
+        # trying to connect to the db to retrieve user's inventory
+        try:
+            with sqlite3.connect(db_path) as db:
+                cursor = db.cursor()
+        except sqlite3.Error as currentError:
+            flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
+            return render_template("deleteitem.html", items=userinventory)
+        
+        # number of items in db with the name {itemName}
+        dbItemCount = 0
+        for item in userinventory:
+            if item[1] == itemName:
+                dbItemCount = item[2]
+
+        if (itemCount is None or itemCount <= 0):
+            flash("Item count cannot be less than 1!", "danger")
+            return render_template("deleteitem.html", items=userinventory)
+        elif (itemCount > dbItemCount):
+            flash("Item count cannot be more than the number of items you currently hold!", "danger")
+            return render_template("deleteitem.html", items=userinventory)
+        
+        # if the number of items I want to delete equals the number of items I hold (for a single item), then delete the whole record itself
+        vals = []
+        if (itemCount == dbItemCount):
+            vals = ["DELETE", session["id"], itemName, itemCount]
+        # otherwise, update current count as (current record - itemcount)
+        else:
+            vals = ["UPDATE", session["id"], itemName, dbItemCount-itemCount]
+        updatedInventory = updateInventory(cursor, db, vals)
+
+        # if there's no errors, i.e. updateInventory() doesn't return none, render temp. with updated inventory
+        if (updatedInventory != None):
+            flash("Successfully applied changes!", "success")
+            return render_template("deleteitem.html", items=updatedInventory)
+        else:
+            flash("There was an error while applying your request, please try again later.", "primary")
+            return render_template("deleteitem.html", items=userinventory)
+        
+
 @app.route("/login", methods=["POST", "GET"])
 def login():
 
@@ -169,6 +223,7 @@ def login():
         # flash("Login successful! Redirecting to homepage", "success")
 
         userinventory = loadInventory(session["id"])
+        flash("Successfully logged in!", "primary")
         return render_template("inventory.html", items=userinventory)
 
 
@@ -228,7 +283,7 @@ def register():
 @app.route("/logout", methods=["GET"])
 def logout():
     session.clear()
-    flash("Successfully logged out!", "success")
+    flash("Successfully logged out!", "primary")
     return render_template("login.html")
 
 app.run(debug=True)
