@@ -42,8 +42,8 @@ def loadInventory(id):
     try:
         with sqlite3.connect(db_path) as db:
             cursor = db.cursor()
-    except sqlite3.Error:
-        flash(f"Error while retrieving user inventory from database {{ sqlite3.Error}} ", "danger")
+    except sqlite3.Error as currentError:
+        flash(f"Error while retrieving user inventory from database { currentError } ", "danger")
     userinventory = cursor.execute("SELECT * FROM inventory WHERE userid = ?", [id])
 
     # using .fetchall() more than once in a single cursor causes a lot of problems such as data not being shown although being existent due to its nature
@@ -55,6 +55,27 @@ def loadInventory(id):
     
     return userinventory
 
+
+# to make things more convenient
+def updateInventory(cursor, db, values):
+    # first query, without any updates
+    userinventory = loadInventory(session["id"])
+    try:     
+        # 3 possible scenarios here
+        if values[0] == "UPDATE":
+            cursor.execute("UPDATE inventory SET count = ? WHERE userid = ? AND item = ?;", (values[3], values[1], values[2]))
+        elif values[0] == "INSERT":
+            cursor.execute("INSERT INTO inventory VALUES(?, ?, ?);", (values[1], values[2], values[3]))
+        elif values[0] == "DELETE":
+            cursor.execute("DELETE FROM inventory WHERE userid = (?)")
+        # new data added to the db, hence .commit() is necessary
+        db.commit()
+        # second query, values are now updated, hence updated values should be shown to the user
+        userinventory = loadInventory(session["id"])
+        return userinventory
+    except sqlite3.Error as currentError:
+        flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
+        return None
 
 @app.route("/")
 @login_required
@@ -75,26 +96,35 @@ def additem():
         # typecasting since request.form.get returns a string
         itemCount = request.form.get("countField", type=int)
         if (itemCount <= 0):
-            flash("Item count cannot be less than 1!", "error")
-            return render_template("additem.html")
+            flash("Item count cannot be less than 1!", "danger")
+            return render_template("additem.html", items=userinventory)
+        
+        # Trying to connect to the db
         try:
             with sqlite3.connect(db_path) as db:
                 cursor = db.cursor()
-        except sqlite3.Error:
-            flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
-            return render_template("additem.html")
+        except sqlite3.Error as currentError:
+            flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
+            return render_template("additem.html", items=userinventory)
         
-        # I have to handle possible errors here.
-        try:
-            cursor.execute("INSERT INTO inventory VALUES (?, ?, ?);", (session["id"], itemName, itemCount))
-            # new data added to the db, hence .commit() is necessary
-            db.commit()
-            userinventory = loadInventory(session["id"])
-            return render_template("additem.html", item=userinventory)
-        except sqlite3.Error:
-            flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
-            return render_template("additem.html", item=userinventory)
+        # looping through userinventory to see if item name exists, if so updating the existing item count is sufficient
+        if (userinventory != None):
+            for row in userinventory:
+                print(row)
+                # ('id', 'itemname', 'itemcount')
+                if row[1] == itemName:
+                    existingItemCount = row[2]
+                    vals = ["UPDATE", session["id"], itemName, existingItemCount + itemCount]
+                    updateInventory(cursor, db, vals)
 
+        # if no records of the matching item is found OR userinventory doesn't consist of any items (i.e. userinventory = None)
+        vals = ["INSERT", session["id"], itemName, itemCount]
+        updatedInventory = updateInventory(cursor, db, vals)
+        if (updatedInventory != None):
+            return render_template("additem.html", items=updatedInventory)
+        else:
+            return render_template("additem.html", items=userinventory)
+    
 @app.route("/login", methods=["POST", "GET"])
 def login():
 
@@ -127,7 +157,8 @@ def login():
         # If everything's fine, we can assign email and passwords to the session
         session["email"] = email
         session["password"] = password_hash
-        flash("Login successful! Redirecting to homepage", "success")
+
+        # flash("Login successful! Redirecting to homepage", "success")
 
         userinventory = loadInventory(session["id"])
         return render_template("inventory.html", items=userinventory)
@@ -162,7 +193,7 @@ def register():
             with sqlite3.connect(db_path) as db:
                 cursor = db.cursor()
         except sqlite3.Error:
-            flash(f"Error while connecting to database, please try again later. {{ sqlite3.Error }}", "danger")
+            flash(f"Error while connecting to database, please try again later. { sqlite3.Error }", "danger")
             return render_template("error.html")
         
         # okay now we're connected to the db, but what if this email has been used before for another account?               
