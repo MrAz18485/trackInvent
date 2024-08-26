@@ -20,6 +20,11 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/deleteitem">Delete Items</a>
                 </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="/history">History</a>
+                </li>
+
             </ul>
             <div class="col-md-1 text-end">
                 <button type="submit" class="btn btn-danger"><a class="nav-link" href="/logout">Logout</a></button>
@@ -29,7 +34,7 @@
         {% block header %}
         {% endblock %}
         
-        {% if items != None %}
+        {% if items != None and tableVisible == true %}
         <table class="table table-bordered text-center flex-column justify-content-center">
             <tbody>
                     <tr>
@@ -48,8 +53,31 @@
                     {% endfor %}
             </tbody>
         </table>
-        {% else %}
+        {% elif items == None %}
             <h3 style="text-align: center">Nothing to show here!</h3>
+        {% else %}
+            <table class="table table-bordered text-center flex-column justify-content-center">
+                <tbody>
+                        <tr>
+                            <th><b>Item Name</b></th>
+                            <th><b>Item Count</b></th>
+                            <th><b>Date</b></th>
+                        </tr>
+                        {% for log in logs %}
+                            <tr>
+                                <td>
+                                    {{ log[1] }}
+                                </td>
+                                <td>
+                                    {{ log[2] }}
+                                </td>
+                                <td>
+                                    {{ log[3] }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                </tbody>
+            </table>
         {% endif %}
         
         

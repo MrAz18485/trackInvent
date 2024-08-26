@@ -10,6 +10,7 @@
 
 import os
 import hashlib
+import datetime
 from flask import Flask, render_template, request, redirect, session, flash
 from flask_session import Session
 from flask_login import LoginManager, UserMixin
@@ -77,11 +78,23 @@ def updateInventory(cursor, db, values):
         flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
         return None
 
+def updateLogs(itemname, count):
+    logTime = datetime.datetime.now()
+    try:
+        with sqlite3.connect(db_path) as db:
+            cursor = db.cursor()
+            cursor.execute("INSERT INTO logs VALUES(?, ?, ?, ?);", (session["id"], itemname, count, logTime))
+            db.commit()
+            return True
+    except sqlite3.Error as currentError:
+        flash(f"Error while saving log for database { currentError } ", "danger")
+        return None
+
 @app.route("/")
 @login_required
 def inventory():
     userinventory = loadInventory(session["id"])
-    return render_template("inventory.html", items=userinventory)
+    return render_template("inventory.html", items=userinventory, tableVisible = True)
 
 
 @app.route("/additem", methods=["GET", "POST"])
@@ -91,7 +104,7 @@ def additem():
     # okay, this is the inventory RIGHT AFTER loading the page (i.e. no changes have been made)
     userinventory = loadInventory(session["id"])
     if request.method == "GET":
-        return render_template("additem.html", items=userinventory)
+        return render_template("additem.html", items=userinventory, tableVisible = True)
     else:
         itemName = request.form.get("nameField")
 
@@ -99,7 +112,7 @@ def additem():
         itemCount = request.form.get("countField", type=int)
         if (itemCount is None or itemCount <= 0):
             flash("Item count cannot be less than 1!", "danger")
-            return render_template("additem.html", items=userinventory)
+            return render_template("additem.html", items=userinventory, tableVisible = True)
         
         # Trying to connect to the db
         try:
@@ -107,7 +120,7 @@ def additem():
                 cursor = db.cursor()
         except sqlite3.Error as currentError:
             flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
-            return render_template("additem.html", items=userinventory)
+            return render_template("additem.html", items=userinventory, tableVisible = True)
         
         # looping through userinventory to see if item name exists, if so updating the existing item count is sufficient
         if (userinventory != None):
@@ -121,19 +134,25 @@ def additem():
 
                     # kind of repetitive, voids the "Don't repeat yourself" principle. Might find a better way of solving this.
                     if (updatedInventory != None):
-                        return render_template("additem.html", items=updatedInventory)
+
+                        # when update is successful, log it to the db
+                        updateLogs(vals[2], vals[3])
+                        return render_template("additem.html", items=updatedInventory, tableVisible = True)
                     else:
-                        return render_template("additem.html", items=userinventory)
+                        return render_template("additem.html", items=userinventory, tableVisible = True)
 
         # if no records of the matching item is found OR userinventory doesn't consist of any items (i.e. userinventory = None, user doesnt have anything)
         vals = ["INSERT", session["id"], itemName, itemCount]
         updatedInventory = updateInventory(cursor, db, vals)
         if (updatedInventory != None):
+
+            # when update is successful, log it to the db
+            updateLogs(vals[2], vals[3])
             flash("Successfully applied changes!", "success")
-            return render_template("additem.html", items=updatedInventory)
+            return render_template("additem.html", items=updatedInventory, tableVisible = True)
         else:
             flash("There was an error while applying your request, please try again later.", "primary")
-            return render_template("additem.html", items=userinventory)
+            return render_template("additem.html", items=userinventory, tableVisible = True)
 
 @app.route("/deleteitem", methods=["POST", "GET"])
 @login_required
@@ -143,7 +162,7 @@ def deleteitem():
     userinventory = loadInventory(session["id"])
     print(userinventory)
     if request.method == "GET":
-        return render_template("deleteitem.html", items=userinventory)
+        return render_template("deleteitem.html", items=userinventory, tableVisible = True)
     else:
         itemName = request.form.get("nameField")
         itemCount = request.form.get("countField", type=int)
@@ -154,7 +173,7 @@ def deleteitem():
                 cursor = db.cursor()
         except sqlite3.Error as currentError:
             flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
-            return render_template("deleteitem.html", items=userinventory)
+            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
         
         # number of items in db with the name {itemName}
         dbItemCount = 0
@@ -164,13 +183,13 @@ def deleteitem():
 
         if (itemCount is None or itemCount <= 0):
             flash("Item count cannot be less than 1!", "danger")
-            return render_template("deleteitem.html", items=userinventory)
+            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
         elif (itemCount > dbItemCount):
             flash("Item count cannot be more than the number of items you currently hold!", "danger")
-            return render_template("deleteitem.html", items=userinventory)
+            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
         
-        # if the number of items I want to delete equals the number of items I hold (for a single item), then delete the whole record itself
         vals = []
+        # if the number of items I want to delete equals the number of items I hold (for a single item), then delete the whole record itself
         if (itemCount == dbItemCount):
             vals = ["DELETE", session["id"], itemName, itemCount]
         # otherwise, update current count as (current record - itemcount)
@@ -180,12 +199,28 @@ def deleteitem():
 
         # if there's no errors, i.e. updateInventory() doesn't return none, render temp. with updated inventory
         if (updatedInventory != None):
+
+            # same procedure as the one in function additem
+            updateLogs(vals[2], vals[3])
             flash("Successfully applied changes!", "success")
-            return render_template("deleteitem.html", items=updatedInventory)
+            return render_template("deleteitem.html", items=updatedInventory, tableVisible = True)
         else:
             flash("There was an error while applying your request, please try again later.", "primary")
-            return render_template("deleteitem.html", items=userinventory)
-        
+            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
+
+@app.route("/history", methods=["GET"])
+@login_required
+def retrieveHistory():
+    try:
+        with sqlite3.connect(db_path) as db:
+            cursor = db.cursor()
+    except sqlite3.Error as currentError:
+        flash(f"Error while retrieving history from database { currentError } ", "danger")
+        return render_template("history.html")
+    print(session["id"])
+    logs = cursor.execute("SELECT * FROM logs WHERE userid = ?;", [session["id"]])
+    return render_template("history.html", items=logs, tableVisible = False)
+
 
 @app.route("/login", methods=["POST", "GET"])
 def login():
@@ -275,7 +310,7 @@ def register():
         # inserting the session id, email and hashed password into the db
         cursor.execute("INSERT INTO userinformation VALUES (?, ?, ?);", (session["id"], email, password_hash))
         db.commit()
-        flash("Registration successful! You can login with your registered email and password", "success")
+        flash("Registration successful! You can login with your registered email and password", "primary")
 
         # right after registration, user will not have any items, so parameter should be set to None
         return render_template("inventory.html", items=None)
