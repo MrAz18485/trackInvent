@@ -87,6 +87,8 @@ def inventory():
 @app.route("/additem", methods=["GET", "POST"])
 @login_required
 def additem():
+
+    # okay, this is the inventory RIGHT AFTER loading the page (i.e. no changes have been made)
     userinventory = loadInventory(session["id"])
     if request.method == "GET":
         return render_template("additem.html", items=userinventory)
@@ -95,7 +97,7 @@ def additem():
 
         # typecasting since request.form.get returns a string
         itemCount = request.form.get("countField", type=int)
-        if (itemCount <= 0):
+        if (itemCount is None or itemCount <= 0):
             flash("Item count cannot be less than 1!", "danger")
             return render_template("additem.html", items=userinventory)
         
@@ -115,9 +117,15 @@ def additem():
                 if row[1] == itemName:
                     existingItemCount = row[2]
                     vals = ["UPDATE", session["id"], itemName, existingItemCount + itemCount]
-                    updateInventory(cursor, db, vals)
+                    updatedInventory = updateInventory(cursor, db, vals)
 
-        # if no records of the matching item is found OR userinventory doesn't consist of any items (i.e. userinventory = None)
+                    # kind of repetitive, voids the "Don't repeat yourself" principle. Might find a better way of solving this.
+                    if (updatedInventory != None):
+                        return render_template("additem.html", items=updatedInventory)
+                    else:
+                        return render_template("additem.html", items=userinventory)
+
+        # if no records of the matching item is found OR userinventory doesn't consist of any items (i.e. userinventory = None, user doesnt have anything)
         vals = ["INSERT", session["id"], itemName, itemCount]
         updatedInventory = updateInventory(cursor, db, vals)
         if (updatedInventory != None):
