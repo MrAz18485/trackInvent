@@ -90,11 +90,21 @@ def updateLogs(itemname, count):
         flash(f"Error while saving log for database { currentError } ", "danger")
         return None
 
+# https://www.geeksforgeeks.org/python-program-to-sort-a-list-of-tuples-by-second-item/ - used for figuring out the logic at sorting list of tuples
+def sort_tuple(tup, keyIndex):
+
+    # orders tuples by (keyIndex)th item (i.e. count) in each tuple, with the help of lambda function
+    # example: if keyIndex = 2, then tuples will be ordered by the second item in descending order
+    tup.sort(reverse = True, key = lambda x: x[keyIndex])
+    return tup
+
 @app.route("/")
 @login_required
 def inventory():
-    userinventory = loadInventory(session["id"])
-    return render_template("inventory.html", items=userinventory, tableVisible = True)
+
+    # ordering list of tuples before passing it as an argument to render_template. You can read the description of sort_tuple for a deeper understanding
+    userinventory = sort_tuple(loadInventory(session["id"]), 2)
+    return render_template("inventory.html", items=userinventory, itemsTableVisible = True)
 
 
 @app.route("/additem", methods=["GET", "POST"])
@@ -102,9 +112,9 @@ def inventory():
 def additem():
 
     # okay, this is the inventory RIGHT AFTER loading the page (i.e. no changes have been made)
-    userinventory = loadInventory(session["id"])
+    userinventory = sort_tuple(loadInventory(session["id"]), 2)
     if request.method == "GET":
-        return render_template("additem.html", items=userinventory, tableVisible = True)
+        return render_template("additem.html", items=userinventory, itemsTableVisible = True)
     else:
         itemName = request.form.get("nameField")
 
@@ -112,7 +122,7 @@ def additem():
         itemCount = request.form.get("countField", type=int)
         if (itemCount is None or itemCount <= 0):
             flash("Item count cannot be less than 1!", "danger")
-            return render_template("additem.html", items=userinventory, tableVisible = True)
+            return render_template("additem.html", items=userinventory, itemsTableVisible = True)
         
         # Trying to connect to the db
         try:
@@ -120,7 +130,7 @@ def additem():
                 cursor = db.cursor()
         except sqlite3.Error as currentError:
             flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
-            return render_template("additem.html", items=userinventory, tableVisible = True)
+            return render_template("additem.html", items=userinventory, itemsTableVisible = True)
         
         # looping through userinventory to see if item name exists, if so updating the existing item count is sufficient
         if (userinventory != None):
@@ -130,39 +140,39 @@ def additem():
                 if row[1] == itemName:
                     existingItemCount = row[2]
                     vals = ["UPDATE", session["id"], itemName, existingItemCount + itemCount]
-                    updatedInventory = updateInventory(cursor, db, vals)
+                    updatedInventory = sort_tuple(updateInventory(cursor, db, vals), 2)
 
                     # kind of repetitive, voids the "Don't repeat yourself" principle. Might find a better way of solving this.
                     if (updatedInventory != None):
 
                         # when update is successful, log it to the db
                         updateLogs(vals[2], vals[3])
-                        return render_template("additem.html", items=updatedInventory, tableVisible = True)
+                        return render_template("additem.html", items=updatedInventory, itemsTableVisible = True)
                     else:
-                        return render_template("additem.html", items=userinventory, tableVisible = True)
+                        return render_template("additem.html", items=userinventory, itemsTableVisible = True)
 
         # if no records of the matching item is found OR userinventory doesn't consist of any items (i.e. userinventory = None, user doesnt have anything)
         vals = ["INSERT", session["id"], itemName, itemCount]
-        updatedInventory = updateInventory(cursor, db, vals)
+        updatedInventory = sort_tuple(updateInventory(cursor, db, vals), 2)
         if (updatedInventory != None):
 
             # when update is successful, log it to the db
             updateLogs(vals[2], vals[3])
             flash("Successfully applied changes!", "success")
-            return render_template("additem.html", items=updatedInventory, tableVisible = True)
+            return render_template("additem.html", items=updatedInventory, itemsTableVisible = True)
         else:
             flash("There was an error while applying your request, please try again later.", "primary")
-            return render_template("additem.html", items=userinventory, tableVisible = True)
+            return render_template("additem.html", items=userinventory, itemsTableVisible = True)
 
 @app.route("/deleteitem", methods=["POST", "GET"])
 @login_required
 def deleteitem():
 
     # this function is pretty similar to function additem(), there's similar checks and error handling procedures.
-    userinventory = loadInventory(session["id"])
+    userinventory = sort_tuple(loadInventory(session["id"]), 2)
     print(userinventory)
     if request.method == "GET":
-        return render_template("deleteitem.html", items=userinventory, tableVisible = True)
+        return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
     else:
         itemName = request.form.get("nameField")
         itemCount = request.form.get("countField", type=int)
@@ -173,7 +183,7 @@ def deleteitem():
                 cursor = db.cursor()
         except sqlite3.Error as currentError:
             flash(f"Error while connecting to database, please try again later. { currentError }", "danger")
-            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
+            return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
         
         # number of items in db with the name {itemName}
         dbItemCount = 0
@@ -183,10 +193,10 @@ def deleteitem():
 
         if (itemCount is None or itemCount <= 0):
             flash("Item count cannot be less than 1!", "danger")
-            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
+            return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
         elif (itemCount > dbItemCount):
             flash("Item count cannot be more than the number of items you currently hold!", "danger")
-            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
+            return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
         
         vals = []
         # if the number of items I want to delete equals the number of items I hold (for a single item), then delete the whole record itself
@@ -195,32 +205,42 @@ def deleteitem():
         # otherwise, update current count as (current record - itemcount)
         else:
             vals = ["UPDATE", session["id"], itemName, dbItemCount-itemCount]
-        updatedInventory = updateInventory(cursor, db, vals)
+        updatedInventory = sort_tuple(updateInventory(cursor, db, vals), 2)
 
         # if there's no errors, i.e. updateInventory() doesn't return none, render temp. with updated inventory
         if (updatedInventory != None):
 
             # same procedure as the one in function additem
-            updateLogs(vals[2], vals[3])
+            updateLogs(vals[2], -vals[3])
             flash("Successfully applied changes!", "success")
-            return render_template("deleteitem.html", items=updatedInventory, tableVisible = True)
+            return render_template("deleteitem.html", items=updatedInventory, itemsTableVisible = True)
         else:
             flash("There was an error while applying your request, please try again later.", "primary")
-            return render_template("deleteitem.html", items=userinventory, tableVisible = True)
+            return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
 
 @app.route("/history", methods=["GET"])
 @login_required
 def retrieveHistory():
-    try:
-        with sqlite3.connect(db_path) as db:
-            cursor = db.cursor()
-    except sqlite3.Error as currentError:
-        flash(f"Error while retrieving history from database { currentError } ", "danger")
-        return render_template("history.html")
-    print(session["id"])
-    logs = cursor.execute("SELECT * FROM logs WHERE userid = ?;", [session["id"]])
-    return render_template("history.html", items=logs, tableVisible = False)
+    if request.method == "GET":
+        try:
+            with sqlite3.connect(db_path) as db:
+                cursor = db.cursor()
+        except sqlite3.Error as currentError:
+            flash(f"Error while retrieving history from database { currentError } ", "danger")
+            return render_template("history.html")
+        print(session["id"])
+        logs = sort_tuple(cursor.execute("SELECT * FROM logs WHERE userid = ?;", [session["id"]]).fetchall(), 3)
+        print(logs)
+        # not going to check whether if logs exist or not, even if it returns none, user should see the empty table of logs
+        return render_template("history.html", logs=logs, itemsTableVisible = False, historyTableVisible = True)
 
+
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def adjustSetting():
+    if request.method == "GET":
+        return render_template("settings.html", itemsTableVisible = False, historyTableVisible = False)
+    else:
 
 @app.route("/login", methods=["POST", "GET"])
 def login():
@@ -257,9 +277,9 @@ def login():
 
         # flash("Login successful! Redirecting to homepage", "success")
 
-        userinventory = loadInventory(session["id"])
+        userinventory = sort_tuple(loadInventory(session["id"]), 2)
         flash("Successfully logged in!", "primary")
-        return render_template("inventory.html", items=userinventory)
+        return render_template("inventory.html", items=userinventory, itemsTableVisible = True)
 
 
 @app.route("/register", methods=["POST", "GET"])
@@ -313,7 +333,7 @@ def register():
         flash("Registration successful! You can login with your registered email and password", "primary")
 
         # right after registration, user will not have any items, so parameter should be set to None
-        return render_template("inventory.html", items=None)
+        return render_template("inventory.html", items=None, itemsTableVisible = True)
 
 @app.route("/logout", methods=["GET"])
 def logout():
