@@ -1,27 +1,30 @@
 <!--Used https://getbootstrap.com/docs/5.3/examples/headers/ as reference-->
-
+<!--https://stackoverflow.com/questions/22754315/for-loop-for-htmlcollection-elements - Helped me in iterating through variable rows, since it's not an array but a HTMLCollection-->
 <!DOCTYPE html>
 <html lang="en">
 <body style="background-color: #FFFFFF;">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script>
-        themeStatus = localStorage.getItem("darkThemeEnabled")
-        rows = document.getElementsByClassName()
-        if (themeStatus == "true") {
-            document.body.style.backgroundColor = "#808080"
-            rows.forEach(element => {
-                element.class
-            });
-        }
-        else {
-            document.body.style.backgroundColor = "#FFFFFF"
-        }
+        document.addEventListener('DOMContentLoaded', function(){
+            themeStatus = localStorage.getItem("darkThemeEnabled")
+            rows = document.getElementsByTagName("tr");
+            HTML = document.getElementsByTagName("html")
+            if (themeStatus == "true") {
+                document.body.style.backgroundColor = "#212529";
+                HTML[0].setAttribute("data-bs-theme", "dark");
+            }
+            else {
+                document.body.style.backgroundColor = "#FFFFFF";
+                HTML[0].removeAttribute("data-bs-theme", "dark");
+            }
+            console.log(rows);
+        });
     </script>
     <div class="container">
         <header class="d-flex flex-wrap justify-content-center align-items-center justify-content-md-between py-3 mb-4 border-bottom">
             <a class="d-flex align-items-center mb-3 mb-md-0 link-body-emphasis text-decoration-none">
-                <span class="fs-2">trackInvent</span>
+                <span class="fs-2" style="color: #0c6cfc;">trackInvent</span>
             </a>
             <ul class="nav col-12 col-md-auto mb-2 justify-content-center mb-md-0">
                 <li class="nav-item">
