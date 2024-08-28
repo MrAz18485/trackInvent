@@ -4,6 +4,8 @@
 # https://stackoverflow.com/questions/12075535/flask-login-cant-understand-how-it-works - helped me in creating a user class
 # used flask-login for logging in, logging out and registering systems
 # used flask-session for handling user sessions
+# https://stackoverflow.com/questions/57963502/how-do-i-update-my-css-stylesheet-saved-under-static-folder-for-python-flask-web - Helped me to figure out a way to establish
+# communication between flask and python
 
 # Used https://www.reddit.com/r/cs50/comments/v3s2f6/is_everything_submitted_to_a_flask_form_a_string/ in function, additem, to convert the variable "itemcount"
 # from string form to int form in request.form.get instead of typecasting it like int()
@@ -15,6 +17,7 @@ from flask import Flask, render_template, request, redirect, session, flash
 from flask_session import Session
 from flask_login import LoginManager, UserMixin
 from helpers import login_required
+from forms import settingsForm
 import sqlite3
 import uuid
 # using sqlite for sql db
@@ -235,12 +238,13 @@ def retrieveHistory():
         return render_template("history.html", logs=logs, itemsTableVisible = False, historyTableVisible = True)
 
 
-@app.route("/settings", methods=["GET", "POST"])
+# took some help from GPT here, especially for the line "option1 = settingsForm.ThemeOption.data"
+@app.route("/settings", methods=["GET"])
 @login_required
 def adjustSetting():
+    form = settingsForm()
     if request.method == "GET":
-        return render_template("settings.html", itemsTableVisible = False, historyTableVisible = False)
-    else:
+        return render_template("settings.html", itemsTableVisible = False, historyTableVisible = False, form=form)
 
 @app.route("/login", methods=["POST", "GET"])
 def login():
