@@ -17,7 +17,6 @@ from flask import Flask, render_template, request, redirect, session, flash
 from flask_session import Session
 from flask_login import LoginManager, UserMixin
 from helpers import login_required
-from forms import settingsForm
 import sqlite3
 import uuid
 # using sqlite for sql db
@@ -98,8 +97,10 @@ def sort_tuple(tup, keyIndex):
 
     # orders tuples by (keyIndex)th item (i.e. count) in each tuple, with the help of lambda function
     # example: if keyIndex = 2, then tuples will be ordered by the second item in descending order
-    tup.sort(reverse = True, key = lambda x: x[keyIndex])
-    return tup
+    if (tup != None):
+        tup.sort(reverse = True, key = lambda x: x[keyIndex])
+        return tup
+    return None
 
 @app.route("/")
 @login_required
@@ -138,7 +139,7 @@ def additem():
         # looping through userinventory to see if item name exists, if so updating the existing item count is sufficient
         if (userinventory != None):
             for row in userinventory:
-                print(row)
+                # print(row)
                 # ('id', 'itemname', 'itemcount')
                 if row[1] == itemName:
                     existingItemCount = row[2]
@@ -189,18 +190,20 @@ def deleteitem():
             return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
         
         # number of items in db with the name {itemName}
-        dbItemCount = 0
+        dbItemCount = -1
         for item in userinventory:
             if item[1] == itemName:
                 dbItemCount = item[2]
 
-        if (itemCount is None or itemCount <= 0):
+        if (dbItemCount == -1):
+            flash("Item doesn't exist!", "danger")
+            return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
+        elif (itemCount is None or itemCount <= 0):
             flash("Item count cannot be less than 1!", "danger")
             return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
         elif (itemCount > dbItemCount):
             flash("Item count cannot be more than the number of items you currently hold!", "danger")
             return render_template("deleteitem.html", items=userinventory, itemsTableVisible = True)
-        
         vals = []
         # if the number of items I want to delete equals the number of items I hold (for a single item), then delete the whole record itself
         if (itemCount == dbItemCount):
@@ -242,9 +245,8 @@ def retrieveHistory():
 @app.route("/settings", methods=["GET"])
 @login_required
 def adjustSetting():
-    form = settingsForm()
     if request.method == "GET":
-        return render_template("settings.html", itemsTableVisible = False, historyTableVisible = False, form=form)
+        return render_template("settings.html", itemsTableVisible = False, historyTableVisible = False)
 
 @app.route("/login", methods=["POST", "GET"])
 def login():

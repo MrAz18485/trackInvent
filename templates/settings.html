@@ -32,13 +32,13 @@
     </script>
 {% endblock %}
 
-
+<!-- Took help from ChatGPT but no luck, so I had to manually use margin-right property and center the div elements.-->
 {% block body %}
     <form action="/settings" method="POST">
-        <div id="container">
-            <h1 style="text-align: center; justify-content: center;">Settings</h1>
-            <div class="form-check form-switch d-flex flex-column align-items-center">
-                <label class="form-check-label justify-content-center" for="flexSwitchCheckDefault" ><h4>Dark Mode</h4></label>
+        <div id="container-check" class="d-flex flex-column justify-content-center align-items-center text-center">
+            <h1>Settings</h1>
+            <div class="form-check form-switch d-flex flex-column justify-content-center align-items-center" style="margin-right: 15px; margin-top: 16px;">
+                <label class="form-check-label" for="flexSwitchCheckDefault" style="margin-right: 18px;"><h4>Dark Mode</h4></label>
                 <input class="form-check-input" type="checkbox" id="flexSwitchCheckDefault" style="transform: scale(1.5);">
             </div>
         </div>
